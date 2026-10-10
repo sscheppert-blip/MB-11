@@ -15,8 +15,16 @@ Built with JUCE as AU, VST3, CLAP and Standalone for macOS, Windows and Linux.
 
 ## Downloads
 
-Every push to `main` builds all formats for all platforms. The packages are attached to the
-workflow run under **Actions → build → Artifacts**.
+Released versions are under **Releases** with packages for macOS, Windows and Linux.
+
+Every push to `main` also builds all formats for all platforms; those packages are attached to the
+workflow run under **Actions → build → Artifacts** (kept for 30 days).
+
+To publish a new version, bump `VERSION` in `CMakeLists.txt` and push a matching tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
 
 The macOS builds are only ad-hoc signed. Gatekeeper may block them on other Macs until they are
 signed and notarized; locally you can allow them with `xattr -dr com.apple.quarantine <plugin>`.
