@@ -388,6 +388,22 @@ int main (int argc, char** argv)
         check (highEnergy (closed) < 0.05 * highEnergy (open), "EQ filters the attack noise");
     }
 
+    // pulse adds a clearly audible click at the default attack and gate
+    {
+        mb11::dsp::Settings s;
+        s.noise = 0.0f; s.attack = 150.0f / 255.0f; s.gate = 60.0f / 255.0f;
+        s.pulse = 0.0f;
+        const auto without = renderHit (s, 48000.0, 0.01);
+        s.pulse = 1.0f;
+        const auto with = renderHit (s, 48000.0, 0.01);
+
+        double click = 0.0;
+        for (size_t i = 0; i < with.size(); ++i)
+            click += (double) (with[i] - without[i]) * (with[i] - without[i]);
+
+        check (click > 0.04 * energy (without, 0, without.size()), "pulse adds an audible click");
+    }
+
     // velocity scales the level
     {
         mb11::dsp::Settings s;

@@ -10,6 +10,11 @@ namespace
 {
     constexpr double twoPi = 6.283185307179586;
 
+    // attack pulse: level and the knock left by the discharging trigger capacitor
+    constexpr float pulseGain = 1.3f;
+    constexpr float pulseKnock = 1.0f;
+    constexpr double pulseKnockSeconds = 0.004;
+
     uint32_t hash (uint32_t value, uint32_t salt) noexcept
     {
         // splitmix32-style integer hash
@@ -161,6 +166,7 @@ void Engine::prepare (double newSampleRate, int oversampling)
     pitchCoef     = onePoleCoef (0.022, sampleRate);
     attackEnvCoef = onePoleCoef (0.002, sampleRate);
     pulseHpCoef   = onePoleCoef (1.0 / (twoPi * 60.0), sampleRate);
+    pulseClickCoef = onePoleCoef (pulseKnockSeconds, sampleRate);
     noiseLpCoef   = onePoleCoef (1.0 / (twoPi * 14000.0), sampleRate);
     couplingCoef  = onePoleCoef (1.0 / (twoPi * 9.0), sampleRate);
     dcCoef        = onePoleCoef (1.0 / (twoPi * 3.0), sampleRate);
@@ -180,7 +186,7 @@ void Engine::reset()
     pitchEnv = ampEnv = attackEnv = 0.0f;
     charging = false;
     gateRemaining = 0;
-    pulseHpState = pulseHpPrev = 0.0f;
+    pulseHpState = pulseHpPrev = pulseClick = 0.0f;
     noiseState = 0.0f;
     couplingIn = couplingOut = 0.0f;
     eqState = 0.0f;
@@ -241,6 +247,7 @@ void Engine::trigger (float newVelocity, float newKeyRatio)
     gateRemaining = gateSamples;
     charging = true;
     attackEnv = 1.0f;
+    pulseClick = 1.0f;
 
     // component noise: slight variation per hit
     hitDrift = 1.0f + 0.002f * random();
@@ -313,7 +320,7 @@ void Engine::updateDrift() noexcept
 
 bool Engine::isSilent() const noexcept
 {
-    return gateRemaining == 0 && ampEnv < 1.0e-5f && attackEnv < 1.0e-5f
+    return gateRemaining == 0 && ampEnv < 1.0e-5f && attackEnv < 1.0e-5f && pulseClick < 1.0e-5f
         && std::abs (eqState) < 1.0e-6f && std::abs (dcOut) < 1.0e-6f && std::abs (couplingOut) < 1.0e-6f;
 }
 
@@ -321,7 +328,7 @@ void Engine::render (float* out, int numSamples) noexcept
 {
     const auto lfoIncrement = settings.lfoBpm / 60.0 / sampleRate;
     const auto nyquistLimit = 0.45 * sampleRate;
-    const auto pulseLevel = settings.pulse;
+    const auto pulseLevel = settings.pulse * pulseGain;
     const auto noiseLevel = settings.noise * 0.9f * noiseGain;
     const auto attackGain = settings.attack * 1.2f;
     const auto vcaNorm = 1.0f / std::tanh (1.1f);
@@ -405,11 +412,15 @@ void Engine::render (float* out, int numSamples) noexcept
         pulseHpState = pulseHpCoef * (pulseHpState + pulseRaw - pulseHpPrev);
         pulseHpPrev = pulseRaw;
 
+        // the discharge of the trigger capacitor adds a short knock after the edge
+        const auto pulseSig = pulseHpState + pulseKnock * pulseClick;
+        pulseClick *= pulseClickCoef;
+
         // the noise transistor is band limited
         const auto noiseIn = noiseSource.next();
         noiseState = noiseIn + noiseLpCoef * (noiseState - noiseIn);
         const auto noiseSig = noiseState * attackEnv;
-        const auto attackSig = attackGain * (pulseLevel * pulseHpState + noiseLevel * noiseSig);
+        const auto attackSig = attackGain * (pulseLevel * pulseSig + noiseLevel * noiseSig);
 
         auto x = 0.9f * body + 0.8f * attackSig;
 
@@ -441,6 +452,7 @@ void Engine::render (float* out, int numSamples) noexcept
     if (std::abs (dcOut) < 1.0e-12f)        dcOut = 0.0f;
     if (std::abs (couplingOut) < 1.0e-12f)  couplingOut = 0.0f;
     if (std::abs (pulseHpState) < 1.0e-12f) pulseHpState = 0.0f;
+    if (pulseClick < 1.0e-12f)              pulseClick = 0.0f;
     if (std::abs (noiseState) < 1.0e-12f)   noiseState = 0.0f;
 }
 }

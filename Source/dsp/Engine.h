@@ -127,7 +127,7 @@ private:
     // derived coefficients
     double baseHz = 50.0, tuneOct = 2.0, lfoOct = 0.0;
     float decayCoef = 0.999f, pitchCoef = 0.999f, attackEnvCoef = 0.99f, chargeCoef = 0.5f;
-    float comprThreshold = 0.0f, pulseHpCoef = 0.99f, couplingCoef = 0.999f, dcCoef = 0.9995f;
+    float comprThreshold = 0.0f, pulseHpCoef = 0.99f, pulseClickCoef = 0.99f, couplingCoef = 0.999f, dcCoef = 0.9995f;
     float noiseLpCoef = 0.5f, driftCoef = 0.9999f;
     float shaperOffset = 0.0f, shaperNorm = 1.0f, outputOffset = 0.0f, outputNorm = 1.0f;
     float harmonicsMix = 0.0f;
@@ -144,7 +144,7 @@ private:
     bool charging = false;
     int gateRemaining = 0;
     float velocity = 1.0f, keyRatio = 1.0f, hitDrift = 1.0f, decayDrift = 1.0f;
-    float pulseHpState = 0.0f, pulseHpPrev = 0.0f;
+    float pulseHpState = 0.0f, pulseHpPrev = 0.0f, pulseClick = 0.0f;
     float noiseState = 0.0f;
     float couplingIn = 0.0f, couplingOut = 0.0f;
     float eqState = 0.0f;
