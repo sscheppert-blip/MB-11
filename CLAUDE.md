@@ -2,7 +2,8 @@
 
 Analog-style bass drum plugin modelled on the Jomox MBase11 (AU, VST3, CLAP, Standalone; macOS/Windows/Linux).
 Built with JUCE 9.0.3 and clap-juce-extensions, both fetched by CMake. User-facing docs: `README.md`,
-`docs/Schnellstart.md` (German quick start).
+`docs/Schnellstart.md` (German quick start). After editing it, regenerate `docs/Schnellstart.pdf` with
+`python3 tools/make_quickstart_pdf.py` (needs reportlab and the DejaVu fonts).
 
 ## Rules
 
