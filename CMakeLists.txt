@@ -79,13 +79,17 @@ clap_juce_extensions_plugin(TARGET MB11
     CLAP_ID       "io.github.sscheppert-blip.mb11"
     CLAP_FEATURES instrument drum synthesizer mono)
 
-# JUCE writes moduleinfo.json into the VST3 after signing and the CLAP bundle is
+# JUCE writes moduleinfo.json into the VST3 after signing, and the CLAP and AU bundles are
 # not signed at all; Apple Silicon hosts refuse to load bundles without a valid signature.
 if(APPLE)
     # The copy into ~/Library/Audio/Plug-Ins happens before this step, so the
     # installed copy is re-signed as well.
-    foreach(format VST3 CLAP)
-        set(installed "$ENV{HOME}/Library/Audio/Plug-Ins/${format}/$<TARGET_BUNDLE_DIR_NAME:MB11_${format}>")
+    foreach(format VST3 CLAP AU)
+        set(folder ${format})
+        if(format STREQUAL "AU")
+            set(folder Components)
+        endif()
+        set(installed "$ENV{HOME}/Library/Audio/Plug-Ins/${folder}/$<TARGET_BUNDLE_DIR_NAME:MB11_${format}>")
         add_custom_command(TARGET MB11_${format} POST_BUILD
             COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:MB11_${format}>"
             COMMAND test ! -d "${installed}" || codesign --force --deep --sign - "${installed}"
