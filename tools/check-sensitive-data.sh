@@ -7,6 +7,12 @@ set -euo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
+# Without ripgrep the scan below would silently find nothing, so refuse to "pass".
+if ! command -v rg >/dev/null 2>&1; then
+    echo "check-sensitive-data: ripgrep (rg) is required but not installed" >&2
+    exit 2
+fi
+
 if [[ $# -eq 0 ]]; then
     range="HEAD"
 elif [[ $# -eq 2 ]]; then

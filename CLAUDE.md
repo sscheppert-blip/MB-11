@@ -52,9 +52,10 @@ cmake --build build
 
 Before calling a change done, also run the validators on the installed plugins (macOS):
 `auval -v aumu Mb11 Sbli`, `pluginval --strictness-level 10 --validate-in-process --validate <vst3/component>`,
-`clap-validator validate <clap>`. CI (`.github/workflows/build.yml`) builds and tests all platforms
-on every push to `main` and uploads the packages as artifacts. A tag `vX.Y.Z` (matching `VERSION` in
-`CMakeLists.txt`) additionally creates a GitHub release with all packages.
+`clap-validator validate <clap>`. CI (`.github/workflows/build.yml`) runs **only on demand**
+(`gh workflow run build -f version=X.Y.Z`, matching `VERSION` in `CMakeLists.txt`) to save Actions
+minutes: it builds and tests AU, VST3 and CLAP on all platforms and publishes release `vX.Y.Z`.
+Pushes do not trigger builds; don't re-add push/tag triggers.
 
 ## Open points
 

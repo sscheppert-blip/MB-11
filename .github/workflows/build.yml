@@ -1,58 +1,71 @@
 name: build
 
+# Builds run only on demand, to save Actions minutes (macOS counts 10x, Windows 2x):
+#   GitHub → Actions → build → "Run workflow", or:  gh workflow run build -f version=0.2.0
+# The version must match VERSION in CMakeLists.txt. Each run builds and tests AU, VST3 and CLAP
+# and publishes them as release v<version>.
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, must match VERSION in CMakeLists.txt (creates tag v<version>)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: release
+  cancel-in-progress: false
 
 jobs:
+  # Cheap checks first (one Linux minute), so a bad version or a leak never starts the expensive builds.
+  scan:
+    name: Check version and scan for sensitive data
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like 0.2.0" >&2; exit 1; }
+          grep -Eq "^project\(MB11 VERSION ${VERSION//./\\.} " CMakeLists.txt \
+            || { echo "version $VERSION does not match VERSION in CMakeLists.txt" >&2; exit 1; }
+
+      - name: Scan for credentials and local-machine data
+        run: |
+          sudo apt-get install -y ripgrep
+          ./tools/check-sensitive-data.sh
+
   build:
     name: ${{ matrix.name }}
+    needs: scan
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - name: macOS
             os: macos-latest
             configure: -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
-            targets: MB11_AU MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests
+            targets: MB11_AU MB11_VST3 MB11_CLAP MB11Tests
             tests: build/MB11Tests_artefacts/Release/MB11Tests
           - name: Linux
             os: ubuntu-24.04
             configure: -G Ninja -DCMAKE_BUILD_TYPE=Release
-            targets: MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests
+            targets: MB11_VST3 MB11_CLAP MB11Tests
             tests: build/MB11Tests_artefacts/Release/MB11Tests
           - name: Windows
             os: windows-latest
             configure: -A x64
-            targets: MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests
+            targets: MB11_VST3 MB11_CLAP MB11Tests
             tests: build/MB11Tests_artefacts/Release/MB11Tests.exe
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Scan for credentials and local-machine data
-        shell: bash
-        env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-        run: |
-          if [[ -n "${GITHUB_EVENT_BEFORE:-}" && "$GITHUB_EVENT_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
-            ./tools/check-sensitive-data.sh "$GITHUB_EVENT_BEFORE" "$GITHUB_SHA"
-          else
-            ./tools/check-sensitive-data.sh
-          fi
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -81,34 +94,28 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp docs/Schnellstart.md dist/
           cd build/MB11_artefacts/Release
           case "${{ runner.os }}" in
             macOS)
               ditto -c -k --keepParent AU/MB-11.component "$GITHUB_WORKSPACE/dist/MB-11-macOS-AU.zip"
               ditto -c -k --keepParent VST3/MB-11.vst3 "$GITHUB_WORKSPACE/dist/MB-11-macOS-VST3.zip"
-              ditto -c -k --keepParent CLAP/MB-11.clap "$GITHUB_WORKSPACE/dist/MB-11-macOS-CLAP.zip"
-              ditto -c -k --keepParent Standalone/MB-11.app "$GITHUB_WORKSPACE/dist/MB-11-macOS-Standalone.zip" ;;
+              ditto -c -k --keepParent CLAP/MB-11.clap "$GITHUB_WORKSPACE/dist/MB-11-macOS-CLAP.zip" ;;
             Linux)
               tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-VST3.tar.gz" -C VST3 MB-11.vst3
-              tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-CLAP.tar.gz" -C CLAP MB-11.clap
-              tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-Standalone.tar.gz" -C Standalone MB-11 ;;
+              tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-CLAP.tar.gz" -C CLAP MB-11.clap ;;
             Windows)
               7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-VST3.zip" ./VST3/MB-11.vst3
-              7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-CLAP.zip" ./CLAP/MB-11.clap
-              7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-Standalone.zip" ./Standalone/MB-11.exe ;;
+              7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-CLAP.zip" ./CLAP/MB-11.clap ;;
           esac
 
       - uses: actions/upload-artifact@v4
         with:
           name: MB-11-${{ matrix.name }}
           path: dist/*
-          retention-days: 30
+          retention-days: 7
 
-  # A version tag (v1.2.3) publishes all packages as a GitHub release.
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -117,20 +124,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Collect packages
-        run: |
-          mkdir -p release
-          find artifacts -type f ! -name Schnellstart.md -exec cp {} release/ \;
-          cp "$(find artifacts -name Schnellstart.md | head -n 1)" release/MB-11-Schnellstart.md
-          ls -l release
+          pattern: MB-11-*
+          path: release
+          merge-multiple: true
 
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/* \
+          ls -l release
+          gh release create "v$VERSION" release/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "MB-11 ${GITHUB_REF_NAME#v}" \
+            --target "$GITHUB_SHA" \
+            --title "MB-11 $VERSION" \
             --generate-notes
