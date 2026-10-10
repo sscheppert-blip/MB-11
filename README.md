@@ -18,15 +18,16 @@ Built with JUCE as AU, VST3, CLAP and Standalone for macOS, Windows and Linux.
 Released versions are under **Releases** with AU (macOS), VST3 and CLAP packages for macOS,
 Windows and Linux.
 
-Builds run only on demand, to save GitHub Actions minutes; pushes don't trigger them. To publish
-a new version, bump `VERSION` in `CMakeLists.txt`, push, then start the build with that version:
+Builds run only on demand (pushes don't trigger them, to save GitHub Actions minutes). To publish a
+new version, bump `VERSION` in `CMakeLists.txt`, commit and push, then:
 
-```bash
-gh workflow run build -f version=0.2.0
-```
+- **On a Mac:** `tools/release-mac.sh 0.2.0` builds, tests and validates the macOS plugins locally as
+  universal binaries, creates a draft release with them, then lets GitHub build only Linux and
+  Windows and publish. `--dry-run` stops after packaging.
+- **On a PC:** `gh workflow run build -f version=0.2.0` (or Actions → build → Run workflow) builds
+  all three platforms on GitHub.
 
-(or **Actions → build → Run workflow**). The run builds and tests all platforms and creates the
-release `v0.2.0` with the packages.
+Either way the release `v0.2.0` gets AU (macOS), VST3 and CLAP packages.
 
 The macOS builds are only ad-hoc signed. Gatekeeper may block them on other Macs until they are
 signed and notarized; locally you can allow them with `xattr -dr com.apple.quarantine <plugin>`.

@@ -1,9 +1,15 @@
 name: build
 
-# Builds run only on demand, to save Actions minutes (macOS counts 10x, Windows 2x):
-#   GitHub → Actions → build → "Run workflow", or:  gh workflow run build -f version=0.2.0
-# The version must match VERSION in CMakeLists.txt. Each run builds and tests AU, VST3 and CLAP
-# and publishes them as release v<version>.
+# Builds run only on demand, to save Actions minutes (macOS counts 10x, Windows 2x).
+# The version must match VERSION in CMakeLists.txt.
+#
+#   On a Mac:  tools/release-mac.sh 0.2.0
+#              builds the macOS packages locally (free), creates a draft release with them and
+#              starts this workflow with macos=false; it adds Linux + Windows and publishes.
+#   On a PC:   gh workflow run build -f version=0.2.0
+#              (or Actions → build → Run workflow): builds all three platforms here.
+#
+# Each run builds and tests AU (macOS), VST3 and CLAP and publishes release v<version>.
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +17,11 @@ on:
         description: "Release version, must match VERSION in CMakeLists.txt (creates tag v<version>)"
         required: true
         type: string
+      macos:
+        description: "Build macOS here (off when the macOS packages were built locally)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -24,6 +35,8 @@ jobs:
   scan:
     name: Check version and scan for sensitive data
     runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,29 +53,35 @@ jobs:
           sudo apt-get install -y ripgrep
           ./tools/check-sensitive-data.sh
 
+      - name: Choose platforms
+        id: matrix
+        env:
+          MACOS: ${{ inputs.macos }}
+        run: |
+          tests=build/MB11Tests_artefacts/Release/MB11Tests
+          entries=$(jq -nc --arg t "$tests" '[
+            { name: "macOS",   os: "macos-latest",
+              configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release \"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64\"",
+              targets: "MB11_AU MB11_VST3 MB11_CLAP MB11Tests", tests: $t },
+            { name: "Linux",   os: "ubuntu-24.04",
+              configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release",
+              targets: "MB11_VST3 MB11_CLAP MB11Tests", tests: $t },
+            { name: "Windows", os: "windows-latest",
+              configure: "-A x64",
+              targets: "MB11_VST3 MB11_CLAP MB11Tests", tests: ($t + ".exe") }
+          ]')
+          if [[ "$MACOS" != "true" ]]; then
+            entries=$(jq -c 'map(select(.name != "macOS"))' <<< "$entries")
+          fi
+          echo "matrix={\"include\":$entries}" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.name }}
     needs: scan
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
-      matrix:
-        include:
-          - name: macOS
-            os: macos-latest
-            configure: -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
-            targets: MB11_AU MB11_VST3 MB11_CLAP MB11Tests
-            tests: build/MB11Tests_artefacts/Release/MB11Tests
-          - name: Linux
-            os: ubuntu-24.04
-            configure: -G Ninja -DCMAKE_BUILD_TYPE=Release
-            targets: MB11_VST3 MB11_CLAP MB11Tests
-            tests: build/MB11Tests_artefacts/Release/MB11Tests
-          - name: Windows
-            os: windows-latest
-            configure: -A x64
-            targets: MB11_VST3 MB11_CLAP MB11Tests
-            tests: build/MB11Tests_artefacts/Release/MB11Tests.exe
+      matrix: ${{ fromJSON(needs.scan.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -128,14 +147,26 @@ jobs:
           path: release
           merge-multiple: true
 
-      - name: Create release
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          MACOS: ${{ inputs.macos }}
         run: |
           ls -l release
-          gh release create "v$VERSION" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "MB-11 $VERSION" \
-            --generate-notes
+          tag="v$VERSION"
+          if draft=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish 2>/dev/null); then
+            # Draft from tools/release-mac.sh, already holding the macOS packages.
+            [[ "$(jq -r .isDraft <<< "$draft")" == "true" ]] || { echo "release $tag is already published" >&2; exit 1; }
+            target=$(jq -r .targetCommitish <<< "$draft")
+            [[ "$target" == "$GITHUB_SHA" ]] || { echo "draft $tag targets $target, this build is $GITHUB_SHA" >&2; exit 1; }
+            gh release upload "$tag" release/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          else
+            [[ "$MACOS" == "true" ]] || { echo "no macOS packages: run tools/release-mac.sh, or start with macos=true" >&2; exit 1; }
+            gh release create "$tag" release/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "MB-11 $VERSION" \
+              --generate-notes
+          fi
