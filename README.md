@@ -53,6 +53,12 @@ Options:
 
 On Linux install the JUCE dependencies first (see `.github/workflows/build.yml`).
 
+## Credits
+
+Idea, direction and testing: [sscheppert-blip](https://github.com/sscheppert-blip).
+The code, DSP and documentation were written by AI coding agents – [Claude Code](https://claude.com/claude-code)
+(Anthropic) and OpenAI Codex – based on those ideas.
+
 ## License
 
 MB-11 uses [JUCE](https://juce.com), which is licensed under AGPLv3 or a commercial JUCE licence.
