@@ -196,11 +196,18 @@ void Bank::store (int slot, const Data& data)
     save();
 }
 
+// macOS:   ~/Library/Application Support/MB-11/PresetBank.xml
+// Windows: %APPDATA%\MB-11\PresetBank.xml
+// Linux:   ~/.config/MB-11/PresetBank.xml
 juce::File Bank::getFile()
 {
-    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-        .getChildFile ("MB-11")
-        .getChildFile ("PresetBank.xml");
+    auto folder = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
+
+   #if JUCE_MAC
+    folder = folder.getChildFile ("Application Support");
+   #endif
+
+    return folder.getChildFile ("MB-11").getChildFile ("PresetBank.xml");
 }
 
 void Bank::load()

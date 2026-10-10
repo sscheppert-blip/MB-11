@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 #include <clap-juce-extensions/clap-juce-extensions.h>
 
 #include "Presets.h"
@@ -81,6 +82,15 @@ private:
 
     mb11::dsp::Engine engine;
     double hostBpm = 120.0;
+
+    // every instance is its own unit with its own component tolerances
+    std::atomic<uint32_t> unitSeed { (uint32_t) juce::Random::getSystemRandom().nextInt() };
+    uint32_t appliedUnitSeed = 0;
+
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+    juce::AudioBuffer<float> zeroBuffer, oversampledBuffer;
+    int oversamplingFactor = 1;
+    int maxChunk = 512;
 
     struct ParameterRefs
     {

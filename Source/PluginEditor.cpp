@@ -33,8 +33,12 @@ namespace
 
 //==============================================================================
 FrontPanel::FrontPanel (MB11AudioProcessor& p)
-    : processor (p), model (p)
+    : processor (p), model (p),
+      // in a DAW the keys (Space!) belong to the host
+      keyboardControl (p.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
 {
+    setWantsKeyboardFocus (keyboardControl);
+
     for (auto* c : std::initializer_list<juce::Component*> { &display, &pot, &encoder, &playButton, &upButton, &downButton,
                                                              &triggerLed, &xTriggerLed, &midiLed })
         addAndMakeVisible (c);
@@ -69,6 +73,28 @@ FrontPanel::FrontPanel (MB11AudioProcessor& p)
 FrontPanel::~FrontPanel()
 {
     stopTimer();
+}
+
+// Standalone keys: Space = Play, Up/Down arrows = Up/Down, Left/Right = encoder,
+// Return = encoder click; with Shift: Up+Down (arrows) and Up+Play (Space).
+bool FrontPanel::keyPressed (const juce::KeyPress& key)
+{
+    if (! keyboardControl)
+        return false;
+
+    const auto shift = key.getModifiers().isShiftDown();
+    const auto code = key.getKeyCode();
+
+    if (code == juce::KeyPress::spaceKey)           shift ? model.upPlay() : model.play();
+    else if (code == juce::KeyPress::upKey)         shift ? model.upDown() : model.up();
+    else if (code == juce::KeyPress::downKey)       shift ? model.upDown() : model.down();
+    else if (code == juce::KeyPress::rightKey)      model.encoderTurn (shift ? 10 : 1);
+    else if (code == juce::KeyPress::leftKey)       model.encoderTurn (shift ? -10 : -1);
+    else if (code == juce::KeyPress::returnKey)     model.encoderClick();
+    else
+        return false;
+
+    return true;
 }
 
 void FrontPanel::resized()
@@ -152,6 +178,12 @@ void FrontPanel::paint (juce::Graphics& g)
 
 void FrontPanel::timerCallback()
 {
+    // The window is not on screen yet when the panel is created, so take the
+    // keyboard focus as soon as it is.
+    if (keyboardControl && ! hasKeyboardFocus (true) && isShowing()
+        && getTopLevelComponent()->hasKeyboardFocus (true) == false && juce::Process::isForegroundProcess())
+        grabKeyboardFocus();
+
     const auto now = juce::Time::getMillisecondCounterHiRes();
     model.tick (now);
 

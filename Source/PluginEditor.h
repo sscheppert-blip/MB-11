@@ -20,6 +20,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     void timerCallback() override;
@@ -28,6 +29,7 @@ private:
 
     MB11AudioProcessor& processor;
     FrontPanelModel model;
+    const bool keyboardControl;
 
     mb11::ui::SevenSegmentDisplay display;
     mb11::ui::ValuePot pot;

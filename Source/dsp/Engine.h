@@ -75,11 +75,30 @@ private:
     uint32_t whiteState = 0x9e3779b9u;
 };
 
+// Tolerances of one "unit": every instance of the plugin behaves like its
+// own piece of hardware. The default is the nominal circuit.
+struct Unit
+{
+    float pitchScale  = 1.0f;    // VCO scale trim
+    float tuneScale   = 1.0f;    // pitch envelope depth
+    float decayScale  = 1.0f;    // capacitor tolerance
+    float shaperDrive = 1.55f;   // triangle-to-sine shaper
+    float asymmetry   = 0.03f;   // shaper offset -> even harmonics
+    float feedthrough = 0.06f;   // VCA control voltage bleeding into the audio
+    float droop       = 0.02f;   // amplitude dependent pitch
+
+    static Unit fromSeed (uint32_t seed);
+};
+
 class Engine
 {
 public:
-    void prepare (double sampleRate);
+    // sampleRate is the internal (oversampled) rate, oversampling the factor
+    // between it and the output rate.
+    void prepare (double sampleRate, int oversampling = 1);
     void reset();
+
+    void setUnit (const Unit&);
 
     // Call once per block (or after a parameter change inside a block).
     void setSettings (const Settings&);
@@ -96,15 +115,21 @@ public:
 private:
     float lfoValue (double phase) const noexcept;
     float random() noexcept;    // -1..1
+    float vco (double phase) const noexcept;
+    void updateDrift() noexcept;
 
     double sampleRate = 44100.0;
+    float noiseGain = 1.0f;
     Settings settings;
+    Unit unit;
     MetalNoise noiseSource;
 
     // derived coefficients
     double baseHz = 50.0, tuneOct = 2.0, lfoOct = 0.0;
     float decayCoef = 0.999f, pitchCoef = 0.999f, attackEnvCoef = 0.99f, chargeCoef = 0.5f;
-    float comprThreshold = 0.0f, pulseHpCoef = 0.99f, dcCoef = 0.9995f;
+    float comprThreshold = 0.0f, pulseHpCoef = 0.99f, couplingCoef = 0.999f, dcCoef = 0.9995f;
+    float noiseLpCoef = 0.5f, driftCoef = 0.9999f;
+    float shaperOffset = 0.0f, shaperNorm = 1.0f, outputOffset = 0.0f, outputNorm = 1.0f;
     float harmonicsMix = 0.0f;
     int gateSamples = 1;
 
@@ -118,10 +143,16 @@ private:
     float pitchEnv = 0.0f, ampEnv = 0.0f, attackEnv = 0.0f;
     bool charging = false;
     int gateRemaining = 0;
-    float velocity = 1.0f, keyRatio = 1.0f, drift = 1.0f, decayDrift = 1.0f;
+    float velocity = 1.0f, keyRatio = 1.0f, hitDrift = 1.0f, decayDrift = 1.0f;
     float pulseHpState = 0.0f, pulseHpPrev = 0.0f;
+    float noiseState = 0.0f;
+    float couplingIn = 0.0f, couplingOut = 0.0f;
     float eqState = 0.0f;
     float dcIn = 0.0f, dcOut = 0.0f;
+
+    // slow thermal drift
+    float drift = 0.0f, driftTarget = 0.0f;
+    int driftCountdown = 0;
 
     // LFO
     double lfoPhase = 0.0;

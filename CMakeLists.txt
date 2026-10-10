@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(MB11 VERSION 0.1.0 LANGUAGES C CXX)
 
 option(MB11_BUILD_TESTS "Build the offline tests" ON)
+option(MB11_COPY_PLUGIN "Copy the built plugins into the user's plugin folders" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,7 +41,7 @@ juce_add_plugin(MB11
     NEEDS_MIDI_OUTPUT        TRUE
     IS_MIDI_EFFECT           FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD  TRUE
+    COPY_PLUGIN_AFTER_BUILD  ${MB11_COPY_PLUGIN}
     VST3_CATEGORIES          Instrument Drum Synth
     AU_MAIN_TYPE             kAudioUnitType_MusicDevice
     DESCRIPTION              "Analog-style bass drum synthesizer")

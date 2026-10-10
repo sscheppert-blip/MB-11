@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <string_view>
+
 // Parameter IDs and layout of the MB-11.
 // Sound parameters use the hardware's internal resolution (0..255).
 namespace mb11::params

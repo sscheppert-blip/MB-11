@@ -86,10 +86,26 @@ MB11AudioProcessor::~MB11AudioProcessor()
     cancelPendingUpdate();
 }
 
-void MB11AudioProcessor::prepareToPlay (double sampleRate, int)
+void MB11AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    // The nonlinear circuit runs oversampled: 4x up to 48 kHz, 2x up to 96 kHz.
+    const auto factorExponent = sampleRate <= 50000.0 ? 2 : (sampleRate <= 100000.0 ? 1 : 0);
+    oversamplingFactor = 1 << factorExponent;
+    maxChunk = juce::jmax (samplesPerBlock, 32);
+
+    oversampler = std::make_unique<juce::dsp::Oversampling<float>> (
+        1, (size_t) factorExponent, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, true);
+    oversampler->initProcessing ((size_t) maxChunk);
+    setLatencySamples (juce::roundToInt (oversampler->getLatencyInSamples()));
+
+    zeroBuffer.setSize (1, maxChunk);
+    zeroBuffer.clear();
+    oversampledBuffer.setSize (1, maxChunk * oversamplingFactor);
+
+    appliedUnitSeed = unitSeed.load();
+    engine.setUnit (mb11::dsp::Unit::fromSeed (appliedUnitSeed));
     engine.setSettings (readSettings());
-    engine.prepare (sampleRate);
+    engine.prepare (sampleRate * oversamplingFactor, oversamplingFactor);
     midiOut.ensureSize (2048);
     xTrigEnvelope = 0.0f;
     xTrigArmed = true;
@@ -198,20 +214,31 @@ void MB11AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
             if (const auto bpm = position->getBpm())
                 hostBpm = juce::jlimit (20.0, 999.0, *bpm);
 
+    if (const auto seed = unitSeed.load(); seed != appliedUnitSeed)
+    {
+        appliedUnitSeed = seed;
+        engine.setUnit (mb11::dsp::Unit::fromSeed (seed));
+    }
+
     engine.setSettings (readSettings());
+
+    // only happens when a host exceeds the announced block size
+    if (oversampledBuffer.getNumSamples() < numSamples * oversamplingFactor)
+        oversampledBuffer.setSize (1, numSamples * oversamplingFactor, false, false, true);
 
     // The sidechain shares channels with the output, so read it before rendering.
     const auto numExternal = detectExternalTriggers (buffer, numSamples);
 
     auto output = getBusBuffer (buffer, false, 0);
     auto* mono = output.getWritePointer (0);
+    auto* oversampled = oversampledBuffer.getWritePointer (0);
     int rendered = 0;
 
     auto renderUpTo = [&] (int end)
     {
         if (end > rendered)
         {
-            engine.render (mono + rendered, end - rendered);
+            engine.render (oversampled + rendered * oversamplingFactor, (end - rendered) * oversamplingFactor);
             rendered = end;
         }
     };
@@ -259,6 +286,20 @@ void MB11AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
     handleExternalUpTo (numSamples);
     renderUpTo (numSamples);
+
+    // back to the host rate
+    for (int start = 0; start < numSamples; start += maxChunk)
+    {
+        const auto length = juce::jmin (maxChunk, numSamples - start);
+        const auto zeros = juce::dsp::AudioBlock<float> (zeroBuffer).getSubBlock (0, (size_t) length);
+        auto up = oversampler->processSamplesUp (zeros);
+        juce::FloatVectorOperations::copy (up.getChannelPointer (0), oversampled + start * oversamplingFactor,
+                                           length * oversamplingFactor);
+
+        float* channels[] = { mono + start };
+        juce::dsp::AudioBlock<float> down (channels, 1, (size_t) length);
+        oversampler->processSamplesDown (down);
+    }
 
     if (noteOffCountdown >= 0)
     {
@@ -497,6 +538,7 @@ void MB11AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto snapshot = state.copyState();
     snapshot.setProperty ("preset", currentPreset.load(), nullptr);
+    snapshot.setProperty ("unit", (juce::int64) unitSeed.load(), nullptr);
 
     if (auto xml = snapshot.createXml())
         copyXmlToBinary (*xml, destData);
@@ -510,6 +552,11 @@ void MB11AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
             const auto tree = juce::ValueTree::fromXml (*xml);
             currentPreset = juce::jlimit (0, mb11::presets::numSlots - 1,
                                           (int) tree.getProperty ("preset", mb11::presets::numUser));
+
+            // keep the "serial number" of the unit the project was made with
+            if (tree.hasProperty ("unit"))
+                unitSeed = (uint32_t) (juce::int64) tree.getProperty ("unit");
+
             state.replaceState (tree);
 
             // Tells hosts that all parameter values changed (CLAP: params rescan).

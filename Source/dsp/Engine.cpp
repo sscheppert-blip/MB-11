@@ -129,18 +129,45 @@ float MetalNoise::next() noexcept
 }
 
 //==============================================================================
-void Engine::prepare (double newSampleRate)
+Unit Unit::fromSeed (uint32_t seed)
+{
+    auto spread = [seed] (uint32_t salt, float amount)
+    {
+        const auto h = hash (seed, salt);
+        return 1.0f + amount * ((float) (h & 0xffffu) / 32767.5f - 1.0f);
+    };
+
+    Unit u;
+    u.pitchScale  *= spread (1, 0.012f);
+    u.tuneScale   *= spread (2, 0.04f);
+    u.decayScale  *= spread (3, 0.05f);
+    u.shaperDrive *= spread (4, 0.06f);
+    u.asymmetry   *= spread (5, 0.4f);
+    u.feedthrough *= spread (6, 0.2f);
+    u.droop       *= spread (7, 0.25f);
+    return u;
+}
+
+//==============================================================================
+void Engine::prepare (double newSampleRate, int oversampling)
 {
     sampleRate = newSampleRate;
     noiseSource.prepare (sampleRate);
+
+    // white noise keeps its in-band level at any oversampling factor
+    noiseGain = std::sqrt ((float) std::max (1, oversampling));
 
     chargeCoef    = 1.0f - onePoleCoef (0.0003, sampleRate);
     pitchCoef     = onePoleCoef (0.022, sampleRate);
     attackEnvCoef = onePoleCoef (0.002, sampleRate);
     pulseHpCoef   = onePoleCoef (1.0 / (twoPi * 60.0), sampleRate);
+    noiseLpCoef   = onePoleCoef (1.0 / (twoPi * 14000.0), sampleRate);
+    couplingCoef  = onePoleCoef (1.0 / (twoPi * 9.0), sampleRate);
     dcCoef        = onePoleCoef (1.0 / (twoPi * 3.0), sampleRate);
+    driftCoef     = onePoleCoef (1.5, sampleRate);
     smoothCoef    = 1.0f - onePoleCoef (0.005, sampleRate);
 
+    setUnit (unit);
     setSettings (settings);
     eqG = eqGTarget;
     gain = gainTarget * velocity;
@@ -154,11 +181,27 @@ void Engine::reset()
     charging = false;
     gateRemaining = 0;
     pulseHpState = pulseHpPrev = 0.0f;
+    noiseState = 0.0f;
+    couplingIn = couplingOut = 0.0f;
     eqState = 0.0f;
     dcIn = dcOut = 0.0f;
     lfoPhase = 0.0;
     lfoDone = true;
     lfoStarted = false;
+}
+
+void Engine::setUnit (const Unit& newUnit)
+{
+    unit = newUnit;
+
+    const auto k = unit.shaperDrive;
+    const auto a = unit.asymmetry;
+    shaperOffset = std::tanh (a);
+    shaperNorm = 1.0f / (std::tanh (k + a) - shaperOffset);
+
+    // output op-amp: slightly asymmetric soft clipping
+    outputOffset = std::tanh (0.08f);
+    outputNorm = 1.0f / (std::tanh (1.4f + 0.08f) - outputOffset);
 }
 
 void Engine::setSettings (const Settings& s)
@@ -171,7 +214,7 @@ void Engine::setSettings (const Settings& s)
     comprThreshold = mapping::comprThreshold (s.compr);
     harmonicsMix   = std::pow (std::clamp (s.harmonics, 0.0f, 1.0f), 0.8f);
     gateSamples    = std::max (1, (int) std::lround (mapping::gateSeconds (s.gate) * sampleRate));
-    decayCoef      = onePoleCoef (mapping::decaySeconds (s.decay) * decayDrift, sampleRate);
+    decayCoef      = onePoleCoef (mapping::decaySeconds (s.decay) * unit.decayScale * decayDrift, sampleRate);
 
     const auto cutoff = std::min ((double) mapping::eqCutoffHz (s.eq), 0.45 * sampleRate);
     const auto g = std::tan (twoPi * 0.5 * cutoff / sampleRate);
@@ -199,10 +242,10 @@ void Engine::trigger (float newVelocity, float newKeyRatio)
     charging = true;
     attackEnv = 1.0f;
 
-    // component tolerances: slight variation per hit
-    drift = 1.0f + 0.004f * random();
+    // component noise: slight variation per hit
+    hitDrift = 1.0f + 0.002f * random();
     decayDrift = 1.0f + 0.015f * random();
-    decayCoef = onePoleCoef (mapping::decaySeconds (settings.decay) * decayDrift, sampleRate);
+    decayCoef = onePoleCoef (mapping::decaySeconds (settings.decay) * unit.decayScale * decayDrift, sampleRate);
 
     if (settings.lfoSync || settings.lfoOneShot)
     {
@@ -240,10 +283,38 @@ float Engine::lfoValue (double p) const noexcept
     return 0.0f;
 }
 
+// Triangle core with a tanh (OTA) shaper instead of an ideal sine: a slightly
+// imperfect, asymmetric sine like the real circuit. Harmonics morphs towards a
+// parabolic wave derived from the same core.
+float Engine::vco (double p) const noexcept
+{
+    const auto x = (float) p;
+    const auto tri = x < 0.25f ? 4.0f * x : (x < 0.75f ? 2.0f - 4.0f * x : 4.0f * x - 4.0f);
+    const auto sine = (std::tanh (unit.shaperDrive * tri + unit.asymmetry) - shaperOffset) * shaperNorm;
+
+    auto q = x - 0.25f;                       // parabola peak aligned with the sine peak
+    q -= std::floor (q + 0.5f);
+    const auto parabola = 0.79f * (1.0f - 12.0f * q * q);
+
+    return sine + harmonicsMix * (parabola - sine);
+}
+
+// Slow random walk, like the temperature drift of the expo converter.
+void Engine::updateDrift() noexcept
+{
+    if (--driftCountdown <= 0)
+    {
+        driftTarget = random();
+        driftCountdown = (int) (sampleRate * (0.5 + 0.5 * (random() + 1.0f)));
+    }
+
+    drift = driftTarget + driftCoef * (drift - driftTarget);
+}
+
 bool Engine::isSilent() const noexcept
 {
     return gateRemaining == 0 && ampEnv < 1.0e-5f && attackEnv < 1.0e-5f
-        && std::abs (eqState) < 1.0e-6f && std::abs (dcOut) < 1.0e-6f;
+        && std::abs (eqState) < 1.0e-6f && std::abs (dcOut) < 1.0e-6f && std::abs (couplingOut) < 1.0e-6f;
 }
 
 void Engine::render (float* out, int numSamples) noexcept
@@ -251,12 +322,16 @@ void Engine::render (float* out, int numSamples) noexcept
     const auto lfoIncrement = settings.lfoBpm / 60.0 / sampleRate;
     const auto nyquistLimit = 0.45 * sampleRate;
     const auto pulseLevel = settings.pulse;
-    const auto noiseLevel = settings.noise * 0.9f;
+    const auto noiseLevel = settings.noise * 0.9f * noiseGain;
     const auto attackGain = settings.attack * 1.2f;
-    const auto saturationNorm = 1.0f / std::tanh (1.4f);
+    const auto vcaNorm = 1.0f / std::tanh (1.1f);
+    const auto baseFrequency = baseHz * unit.pitchScale;
+    const auto tuneDepth = tuneOct * unit.tuneScale;
 
     for (int n = 0; n < numSamples; ++n)
     {
+        updateDrift();
+
         // LFO
         float lfo = 0.0f;
 
@@ -279,7 +354,7 @@ void Engine::render (float* out, int numSamples) noexcept
             }
         }
 
-        // trigger gate and envelopes
+        // trigger gate and capacitor envelopes
         const bool gateOn = gateRemaining > 0;
 
         if (gateOn)
@@ -309,30 +384,40 @@ void Engine::render (float* out, int numSamples) noexcept
         // Compr: a threshold subtracted from the envelope makes the tail fade out early.
         const auto shapedEnv = std::max (0.0f, ampEnv - comprThreshold) / (1.0f - comprThreshold);
 
-        // VCO
-        const auto octaves = tuneOct * pitchEnv + lfoOct * lfo;
-        const auto freq = std::clamp (baseHz * keyRatio * drift * std::exp2 (octaves), 1.0, nyquistLimit);
+        // VCO with a slightly non-ideal expo converter, amplitude dependent
+        // pitch (louder = a little higher) and thermal drift
+        const auto octaves = tuneDepth * pitchEnv + lfoOct * lfo;
+        const auto expo = std::exp2 (octaves * (1.0 + 0.012 * octaves));
+        const auto freq = std::clamp (baseFrequency * keyRatio * hitDrift * expo
+                                          * (1.0 + unit.droop * ampEnv) * (1.0 + 0.0015 * drift),
+                                      1.0, nyquistLimit);
 
         phase += freq / sampleRate;
         phase -= std::floor (phase);
 
-        const auto sine = (float) std::sin (twoPi * phase);
-        auto q = (float) phase - 0.25f;          // parabola peak aligned with the sine peak
-        q -= std::floor (q + 0.5f);
-        const auto parabola = 0.79f * (1.0f - 12.0f * q * q);
-        const auto osc = sine + harmonicsMix * (parabola - sine);
-
-        const auto body = osc * shapedEnv;
+        // OTA VCA: soft saturation and a little control voltage feedthrough,
+        // which the coupling capacitor turns into a low thump
+        const auto vcaIn = vco (phase) * shapedEnv + unit.feedthrough * shapedEnv;
+        const auto body = std::tanh (1.1f * vcaIn) * vcaNorm;
 
         // attack section: rectangular pulse for the gate time plus noise
         const auto pulseRaw = gateOn ? 1.0f : 0.0f;
         pulseHpState = pulseHpCoef * (pulseHpState + pulseRaw - pulseHpPrev);
         pulseHpPrev = pulseRaw;
 
-        const auto noiseSig = noiseSource.next() * attackEnv;
+        // the noise transistor is band limited
+        const auto noiseIn = noiseSource.next();
+        noiseState = noiseIn + noiseLpCoef * (noiseState - noiseIn);
+        const auto noiseSig = noiseState * attackEnv;
         const auto attackSig = attackGain * (pulseLevel * pulseHpState + noiseLevel * noiseSig);
 
         auto x = 0.9f * body + 0.8f * attackSig;
+
+        // coupling capacitor between the stages
+        const auto coupled = x - couplingIn + couplingCoef * couplingOut;
+        couplingIn = x;
+        couplingOut = coupled;
+        x = coupled;
 
         // EQ: smooth one-pole low-pass (TPT)
         eqG += (eqGTarget - eqG) * smoothCoef;
@@ -340,8 +425,8 @@ void Engine::render (float* out, int numSamples) noexcept
         x = v + eqState;
         eqState = x + v;
 
-        // output stage: soft saturation, DC blocker, volume
-        x = std::tanh (1.4f * x) * saturationNorm;
+        // output stage: asymmetric soft clipping, DC blocker, volume
+        x = (std::tanh (1.4f * x + 0.08f) - outputOffset) * outputNorm;
 
         const auto dc = x - dcIn + dcCoef * dcOut;
         dcIn = x;
@@ -352,8 +437,10 @@ void Engine::render (float* out, int numSamples) noexcept
         out[n] = dc * gain;
     }
 
-    if (std::abs (eqState) < 1.0e-12f) eqState = 0.0f;
-    if (std::abs (dcOut) < 1.0e-12f)   dcOut = 0.0f;
+    if (std::abs (eqState) < 1.0e-12f)      eqState = 0.0f;
+    if (std::abs (dcOut) < 1.0e-12f)        dcOut = 0.0f;
+    if (std::abs (couplingOut) < 1.0e-12f)  couplingOut = 0.0f;
     if (std::abs (pulseHpState) < 1.0e-12f) pulseHpState = 0.0f;
+    if (std::abs (noiseState) < 1.0e-12f)   noiseState = 0.0f;
 }
 }
