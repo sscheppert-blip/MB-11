@@ -5,4 +5,7 @@ cmake-build-*/
 .vscode/
 .idea/
 MBase11_D.pdf
+CLAUDE.md
 CLAUDE.local.md
+AGENTS.md
+.claude/

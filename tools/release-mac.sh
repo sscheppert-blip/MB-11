@@ -56,7 +56,7 @@ cp -R "$release/AU/MB-11.component" ~/Library/Audio/Plug-Ins/Components/
 killall -9 AudioComponentRegistrar 2>/dev/null || true
 auval -v aumu Mb11 Sbli | tail -3
 
-# Further validators from CLAUDE.md, when installed.
+# Further validators (see the agent notes), when installed.
 if command -v pluginval >/dev/null 2>&1; then
     echo "▸ pluginval"
     pluginval --strictness-level 10 --validate-in-process --validate "$release/VST3/MB-11.vst3" | tail -2
