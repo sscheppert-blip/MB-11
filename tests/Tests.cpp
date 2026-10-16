@@ -347,6 +347,10 @@ int main (int argc, char** argv)
         const auto early = measureFrequency (out, sampleRate, 0, 960);
         const auto late = measureFrequency (out, sampleRate, 24000, 48000);
         check (early > 2.0 * late, "tune creates a pitch sweep");
+
+        // like the hardware recordings, the sweep is still audible after 100 ms
+        const auto mid = measureFrequency (out, sampleRate, 3840, 5760);
+        check (mid > 1.2 * late && mid < 1.7 * late, "pitch sweep time matches the hardware");
     }
 
     // decay: the sound dies away

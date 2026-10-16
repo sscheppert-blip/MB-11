@@ -163,7 +163,7 @@ void Engine::prepare (double newSampleRate, int oversampling)
     noiseGain = std::sqrt ((float) std::max (1, oversampling));
 
     chargeCoef    = 1.0f - onePoleCoef (0.0003, sampleRate);
-    pitchCoef     = onePoleCoef (0.022, sampleRate);
+    pitchCoef     = onePoleCoef (0.045, sampleRate);    // measured on hardware recordings: 40..50 ms
     attackEnvCoef = onePoleCoef (0.002, sampleRate);
     pulseHpCoef   = onePoleCoef (1.0 / (twoPi * 60.0), sampleRate);
     pulseClickCoef = onePoleCoef (pulseKnockSeconds, sampleRate);
