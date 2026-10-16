@@ -44,7 +44,7 @@ The code, DSP and documentation were written by AI coding agents – [Claude Cod
 
 ## License
 
-The license for MB-11 itself is not settled yet. The plugins are built with [JUCE](https://juce.com),
-which has its own license terms.
+Public domain ([Unlicense](LICENSE)) – do whatever you like with it, no credit needed.
+The plugins are built with [JUCE](https://juce.com), which has its own license terms.
 
 <sub>Building from source: [docs/Development.md](docs/Development.md)</sub>
