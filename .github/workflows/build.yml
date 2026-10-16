@@ -113,20 +113,23 @@ jobs:
 
       - name: Package
         shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           mkdir -p dist
+          out="$GITHUB_WORKSPACE/dist/MB-11-$VERSION"
           cd build/MB11_artefacts/Release
           case "${{ runner.os }}" in
             macOS)
-              ditto -c -k --keepParent AU/MB-11.component "$GITHUB_WORKSPACE/dist/MB-11-macOS-AU.zip"
-              ditto -c -k --keepParent VST3/MB-11.vst3 "$GITHUB_WORKSPACE/dist/MB-11-macOS-VST3.zip"
-              ditto -c -k --keepParent CLAP/MB-11.clap "$GITHUB_WORKSPACE/dist/MB-11-macOS-CLAP.zip" ;;
+              ditto -c -k --keepParent AU/MB-11.component "$out-macOS-AU.zip"
+              ditto -c -k --keepParent VST3/MB-11.vst3 "$out-macOS-VST3.zip"
+              ditto -c -k --keepParent CLAP/MB-11.clap "$out-macOS-CLAP.zip" ;;
             Linux)
-              tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-VST3.tar.gz" -C VST3 MB-11.vst3
-              tar -czf "$GITHUB_WORKSPACE/dist/MB-11-Linux-CLAP.tar.gz" -C CLAP MB-11.clap ;;
+              tar -czf "$out-Linux-VST3.tar.gz" -C VST3 MB-11.vst3
+              tar -czf "$out-Linux-CLAP.tar.gz" -C CLAP MB-11.clap ;;
             Windows)
-              7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-VST3.zip" ./VST3/MB-11.vst3
-              7z a "$GITHUB_WORKSPACE/dist/MB-11-Windows-CLAP.zip" ./CLAP/MB-11.clap ;;
+              7z a "$out-Windows-VST3.zip" ./VST3/MB-11.vst3
+              7z a "$out-Windows-CLAP.zip" ./CLAP/MB-11.clap ;;
           esac
 
       - uses: actions/upload-artifact@v4
@@ -143,6 +146,10 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/releases
+
       - uses: actions/download-artifact@v4
         with:
           pattern: MB-11-*
@@ -157,18 +164,31 @@ jobs:
         run: |
           ls -l release
           tag="v$VERSION"
+
+          # docs/releases/<version>.md: first line "# <title>", the rest are the notes
+          notes_args=(--generate-notes)
+          title="MB-11 $VERSION"
+          if [[ -f "docs/releases/$VERSION.md" ]]; then
+            title=$(head -n 1 "docs/releases/$VERSION.md" | sed 's/^# *//')
+            tail -n +2 "docs/releases/$VERSION.md" > notes.md
+            notes_args=(--notes-file notes.md)
+          fi
+
           if draft=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish 2>/dev/null); then
             # Draft from tools/release-mac.sh, already holding the macOS packages.
             [[ "$(jq -r .isDraft <<< "$draft")" == "true" ]] || { echo "release $tag is already published" >&2; exit 1; }
             target=$(jq -r .targetCommitish <<< "$draft")
             [[ "$target" == "$GITHUB_SHA" ]] || { echo "draft $tag targets $target, this build is $GITHUB_SHA" >&2; exit 1; }
             gh release upload "$tag" release/* --repo "$GITHUB_REPOSITORY" --clobber
+            if [[ -f notes.md ]]; then
+              gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" --notes-file notes.md
+            fi
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
           else
             [[ "$MACOS" == "true" ]] || { echo "no macOS packages: run tools/release-mac.sh, or start with macos=true" >&2; exit 1; }
             gh release create "$tag" release/* \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "MB-11 $VERSION" \
-              --generate-notes
+              --title "$title" \
+              "${notes_args[@]}"
           fi

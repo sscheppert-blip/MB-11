@@ -68,9 +68,9 @@ fi
 
 # ── package, draft release, start the Linux/Windows build ───────────────────
 rm -rf "$dist" && mkdir -p "$dist"
-ditto -c -k --keepParent "$release/VST3/MB-11.vst3"      "$dist/MB-11-macOS-VST3.zip"
-ditto -c -k --keepParent "$release/CLAP/MB-11.clap"      "$dist/MB-11-macOS-CLAP.zip"
-ditto -c -k --keepParent "$release/AU/MB-11.component"   "$dist/MB-11-macOS-AU.zip"
+ditto -c -k --keepParent "$release/VST3/MB-11.vst3"      "$dist/MB-11-$version-macOS-VST3.zip"
+ditto -c -k --keepParent "$release/CLAP/MB-11.clap"      "$dist/MB-11-$version-macOS-CLAP.zip"
+ditto -c -k --keepParent "$release/AU/MB-11.component"   "$dist/MB-11-$version-macOS-AU.zip"
 
 if [[ "$dry_run" == true ]]; then
     echo "✓ dry run done – packages in $dist:"
