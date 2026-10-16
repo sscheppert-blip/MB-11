@@ -4,7 +4,7 @@ cmake-build-*/
 .DS_Store
 .vscode/
 .idea/
-MBase11_D.pdf
+MBase11_*.pdf
 CLAUDE.md
 CLAUDE.local.md
 AGENTS.md
