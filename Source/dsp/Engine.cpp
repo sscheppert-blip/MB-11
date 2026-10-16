@@ -167,7 +167,7 @@ void Engine::prepare (double newSampleRate, int oversampling)
     attackEnvCoef = onePoleCoef (0.002, sampleRate);
     pulseHpCoef   = onePoleCoef (1.0 / (twoPi * 60.0), sampleRate);
     pulseClickCoef = onePoleCoef (pulseKnockSeconds, sampleRate);
-    noiseLpCoef   = onePoleCoef (1.0 / (twoPi * 14000.0), sampleRate);
+    noiseLpCoef   = onePoleCoef (1.0 / (twoPi * 6000.0), sampleRate);
     couplingCoef  = onePoleCoef (1.0 / (twoPi * 9.0), sampleRate);
     dcCoef        = onePoleCoef (1.0 / (twoPi * 3.0), sampleRate);
     driftCoef     = onePoleCoef (1.5, sampleRate);
@@ -187,7 +187,7 @@ void Engine::reset()
     charging = false;
     gateRemaining = 0;
     pulseHpState = pulseHpPrev = pulseClick = 0.0f;
-    noiseState = 0.0f;
+    noiseState = noiseState2 = 0.0f;
     couplingIn = couplingOut = 0.0f;
     eqState = 0.0f;
     dcIn = dcOut = 0.0f;
@@ -416,10 +416,11 @@ void Engine::render (float* out, int numSamples) noexcept
         const auto pulseSig = pulseHpState + pulseKnock * pulseClick;
         pulseClick *= pulseClickCoef;
 
-        // the noise transistor is band limited
+        // the noise transistor is band limited (two poles, as dark as on hardware recordings)
         const auto noiseIn = noiseSource.next();
         noiseState = noiseIn + noiseLpCoef * (noiseState - noiseIn);
-        const auto noiseSig = noiseState * attackEnv;
+        noiseState2 = noiseState + noiseLpCoef * (noiseState2 - noiseState);
+        const auto noiseSig = noiseState2 * attackEnv;
         const auto attackSig = attackGain * (pulseLevel * pulseSig + noiseLevel * noiseSig);
 
         auto x = 0.9f * body + 0.8f * attackSig;
@@ -454,5 +455,6 @@ void Engine::render (float* out, int numSamples) noexcept
     if (std::abs (pulseHpState) < 1.0e-12f) pulseHpState = 0.0f;
     if (pulseClick < 1.0e-12f)              pulseClick = 0.0f;
     if (std::abs (noiseState) < 1.0e-12f)   noiseState = 0.0f;
+    if (std::abs (noiseState2) < 1.0e-12f)  noiseState2 = 0.0f;
 }
 }

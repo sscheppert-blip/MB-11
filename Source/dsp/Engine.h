@@ -145,7 +145,7 @@ private:
     int gateRemaining = 0;
     float velocity = 1.0f, keyRatio = 1.0f, hitDrift = 1.0f, decayDrift = 1.0f;
     float pulseHpState = 0.0f, pulseHpPrev = 0.0f, pulseClick = 0.0f;
-    float noiseState = 0.0f;
+    float noiseState = 0.0f, noiseState2 = 0.0f;
     float couplingIn = 0.0f, couplingOut = 0.0f;
     float eqState = 0.0f;
     float dcIn = 0.0f, dcOut = 0.0f;

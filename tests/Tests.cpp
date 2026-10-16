@@ -390,6 +390,17 @@ int main (int argc, char** argv)
         };
 
         check (highEnergy (closed) < 0.05 * highEnergy (open), "EQ filters the attack noise");
+
+        // the noise alone is about as dark as on hardware recordings (white noise: ~2.0)
+        s.eq = 0.0f;
+        s.noise = 0.0f;
+        const auto withoutNoise = renderHit (s, 48000.0, 0.02);
+        std::vector<float> noise (open.size());
+        for (size_t i = 0; i < noise.size(); ++i)
+            noise[i] = open[i] - withoutNoise[i];
+
+        const auto brightness = highEnergy (noise) / energy (noise, 0, noise.size());
+        check (brightness > 0.3 && brightness < 0.8, "attack noise has the hardware's colour");
     }
 
     // pulse adds a clearly audible click at the default attack and gate
