@@ -1,6 +1,8 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
+#include "BuildInfo.h"
+
 namespace
 {
     using namespace mb11::ui;
@@ -28,6 +30,17 @@ namespace
         g.setColour (colour);
         g.setFont (juce::FontOptions (height, bold ? juce::Font::bold : juce::Font::plain));
         g.drawText (text, area, justification, false);
+    }
+
+    juce::String formatName (const MB11AudioProcessor& p)
+    {
+        if (p.is_clap)
+            return "CLAP";
+
+        if (p.wrapperType == juce::AudioProcessor::wrapperType_Undefined)
+            return "-";
+
+        return juce::AudioProcessor::getWrapperTypeDescription (p.wrapperType);
     }
 }
 
@@ -65,6 +78,21 @@ FrontPanel::FrontPanel (MB11AudioProcessor& p)
     encoder.setTooltip ("VALUE  (ziehen/scrollen, Klick = Load/Enter)");
     pot.setTooltip ("VALUE Poti (holt den Wert erst ab)");
 
+    addAndMakeVisible (logoArea);
+    logoArea.setTooltip ("Info und Version");
+    logoArea.onClick = [this] { showInfo (true); };
+
+    juce::String build (MB11_BUILD_NUMBER);
+    build << "  (" << MB11_BUILD_COMMIT << ")";
+
+    infoPopup.setRows ({ { "Version", MB11_VERSION },
+                         { "Build", build },
+                         { "Stand", MB11_BUILD_DATE },
+                         { "Format", formatName (p) },
+                         { "JUCE", juce::String (JUCE_MAJOR_VERSION) + "." + juce::String (JUCE_MINOR_VERSION) + "." + juce::String (JUCE_BUILDNUMBER) } });
+    infoPopup.onClose = [this] { showInfo (false); };
+    addChildComponent (infoPopup);
+
     setSize (designWidth, designHeight);
     timerCallback();
     startTimerHz (30);
@@ -85,7 +113,9 @@ bool FrontPanel::keyPressed (const juce::KeyPress& key)
     const auto shift = key.getModifiers().isShiftDown();
     const auto code = key.getKeyCode();
 
-    if (code == juce::KeyPress::spaceKey)           shift ? model.upPlay() : model.play();
+    if (infoPopup.isVisible() && code == juce::KeyPress::escapeKey)
+        showInfo (false);
+    else if (code == juce::KeyPress::spaceKey)           shift ? model.upPlay() : model.play();
     else if (code == juce::KeyPress::upKey)         shift ? model.upDown() : model.up();
     else if (code == juce::KeyPress::downKey)       shift ? model.upDown() : model.down();
     else if (code == juce::KeyPress::rightKey)      model.encoderTurn (shift ? 10 : 1);
@@ -116,6 +146,17 @@ void FrontPanel::resized()
         soundLeds[(size_t) i].setBounds (ledBounds (soundLedX, i));
         masterLeds[(size_t) i].setBounds (ledBounds (masterLedX, i));
     }
+
+    logoArea.setBounds (24, 14, 190, 60);
+    infoPopup.setBounds (getLocalBounds());
+}
+
+void FrontPanel::showInfo (bool shouldBeVisible)
+{
+    infoPopup.setVisible (shouldBeVisible);
+
+    if (shouldBeVisible)
+        infoPopup.toFront (false);
 }
 
 void FrontPanel::paint (juce::Graphics& g)

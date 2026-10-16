@@ -106,4 +106,32 @@ private:
     float position = 0.5f, dragStartPosition = 0.5f;
     bool caught = false;
 };
+
+// Invisible click area, e.g. over the logo.
+class ClickArea final : public juce::Component,
+                        public juce::SettableTooltipClient
+{
+public:
+    ClickArea();
+
+    std::function<void()> onClick;
+
+    void mouseUp (const juce::MouseEvent&) override;
+};
+
+// Version popup in the style of the panel; a click anywhere closes it.
+class InfoPopup final : public juce::Component
+{
+public:
+    struct Row { juce::String label, value; };
+
+    std::function<void()> onClose;
+
+    void setRows (std::vector<Row> newRows);
+    void paint (juce::Graphics&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+
+private:
+    std::vector<Row> rows;
+};
 }

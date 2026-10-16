@@ -46,6 +46,14 @@ juce_add_plugin(MB11
     AU_MAIN_TYPE             kAudioUnitType_MusicDevice
     DESCRIPTION              "Analog-style bass drum synthesizer")
 
+# Build number and commit for the info popup, refreshed on every build
+set(MB11_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+add_custom_target(MB11_BuildInfo
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DVERSION=${PROJECT_VERSION}
+            -DOUTPUT=${MB11_GENERATED_DIR}/BuildInfo.h -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildInfo.cmake
+    BYPRODUCTS ${MB11_GENERATED_DIR}/BuildInfo.h
+    VERBATIM)
+
 set(MB11_SOURCES
     Source/dsp/Engine.cpp
     Source/Presets.cpp
@@ -57,7 +65,8 @@ set(MB11_SOURCES
 
 target_sources(MB11 PRIVATE ${MB11_SOURCES})
 
-target_include_directories(MB11 PRIVATE Source)
+target_include_directories(MB11 PRIVATE Source ${MB11_GENERATED_DIR})
+add_dependencies(MB11 MB11_BuildInfo)
 
 target_compile_definitions(MB11
     PUBLIC
@@ -104,7 +113,8 @@ if(MB11_BUILD_TESTS)
     juce_add_console_app(MB11Tests PRODUCT_NAME "MB11Tests")
 
     target_sources(MB11Tests PRIVATE ${MB11_SOURCES} tests/Tests.cpp)
-    target_include_directories(MB11Tests PRIVATE Source)
+    target_include_directories(MB11Tests PRIVATE Source ${MB11_GENERATED_DIR})
+    add_dependencies(MB11Tests MB11_BuildInfo)
     target_compile_definitions(MB11Tests
         PRIVATE
             JUCE_WEB_BROWSER=0

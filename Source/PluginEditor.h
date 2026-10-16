@@ -22,6 +22,9 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
 
+    // the version popup, opened by a click on the logo
+    void showInfo (bool shouldBeVisible);
+
 private:
     void timerCallback() override;
     void dumpSysex();
@@ -37,6 +40,8 @@ private:
     mb11::ui::PanelButton playButton, upButton, downButton;
     mb11::ui::Led triggerLed, xTriggerLed, midiLed;
     std::array<mb11::ui::Led, 8> soundLeds, masterLeds;
+    mb11::ui::ClickArea logoArea;
+    mb11::ui::InfoPopup infoPopup;
 
     uint32_t lastTrigger = 0, lastXTrigger = 0, lastMidi = 0;
     double triggerUntil = 0.0, xTriggerUntil = 0.0, midiUntil = 0.0;

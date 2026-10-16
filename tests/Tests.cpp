@@ -128,12 +128,24 @@ static int renderDemo (const char* path)
     return ok ? 0 : 1;
 }
 
-// Renders the editor to a PNG file.
-static int snapshot (const char* path)
+static FrontPanel* findPanel (juce::Component& editor)
+{
+    for (auto* child : editor.getChildren())
+        if (auto* panel = dynamic_cast<FrontPanel*> (child))
+            return panel;
+
+    return nullptr;
+}
+
+// Renders the editor (optionally with the version popup open) to a PNG file.
+static int snapshot (const char* path, bool withInfo = false)
 {
     MB11AudioProcessor processor;
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     editor->setSize (FrontPanel::designWidth * 2, FrontPanel::designHeight * 2);
+
+    if (withInfo)
+        findPanel (*editor)->showInfo (true);
 
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
     juce::FileOutputStream stream (juce::File (juce::String::fromUTF8 (path)));
@@ -204,6 +216,33 @@ static void testProcessor()
     check (processor.getCurrentPreset() == mb11::presets::numUser + 1 && ! processor.isPresetEdited(), "loading a preset");
     processor.setParameterInt (id::decay, processor.getParameterInt (id::decay) + 1);
     check (processor.isPresetEdited(), "editing a parameter sets Edit-On");
+}
+
+static void testInfoPopup()
+{
+    MB11AudioProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+    auto* panel = findPanel (*editor);
+
+    auto popupVisible = [panel]
+    {
+        for (auto* child : panel->getChildren())
+            if (dynamic_cast<mb11::ui::InfoPopup*> (child) != nullptr)
+                return child->isVisible();
+
+        return false;
+    };
+
+    check (! popupVisible(), "version popup starts hidden");
+
+    // a click on the logo opens it, a click on the popup closes it
+    auto* logo = panel->getComponentAt (60, 30);
+    logo->mouseUp (juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), { 10.0f, 10.0f }, {}, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                     logo, logo, juce::Time::getCurrentTime(), { 10.0f, 10.0f }, juce::Time::getCurrentTime(), 1, false));
+    check (popupVisible(), "logo click opens the version popup");
+
+    panel->showInfo (false);
+    check (! popupVisible(), "version popup closes");
 }
 
 static void testFrontPanel()
@@ -279,6 +318,9 @@ int main (int argc, char** argv)
     if (argc == 3 && std::string_view (argv[1]) == "--snapshot")
         return snapshot (argv[2]);
 
+    if (argc == 3 && std::string_view (argv[1]) == "--snapshot-info")
+        return snapshot (argv[2], true);
+
     if (argc == 2 && std::string_view (argv[1]) == "--bench")
     {
         MB11AudioProcessor processor;
@@ -304,6 +346,7 @@ int main (int argc, char** argv)
 
     testProcessor();
     testFrontPanel();
+    testInfoPopup();
 
     const auto bank = mb11::presets::createFactoryBank();
 

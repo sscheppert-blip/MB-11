@@ -406,4 +406,99 @@ void ValuePot::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDe
 {
     moveTo (position + (wheel.isReversed ? -wheel.deltaY : wheel.deltaY) * 0.1f);
 }
+
+//==============================================================================
+ClickArea::ClickArea()
+{
+    setMouseCursor (juce::MouseCursor::PointingHandCursor);
+}
+
+void ClickArea::mouseUp (const juce::MouseEvent& event)
+{
+    if (onClick != nullptr && getLocalBounds().contains (event.getPosition()))
+        onClick();
+}
+
+//==============================================================================
+void InfoPopup::setRows (std::vector<Row> newRows)
+{
+    rows = std::move (newRows);
+    repaint();
+}
+
+void InfoPopup::paint (juce::Graphics& gr)
+{
+    gr.fillAll (juce::Colours::black.withAlpha (0.55f));
+
+    const auto rowHeight = 22.0f;
+    const auto card = getLocalBounds().toFloat().withSizeKeepingCentre (360.0f, 130.0f + rowHeight * (float) rows.size());
+
+    gr.setColour (juce::Colours::black.withAlpha (0.5f));
+    gr.fillRoundedRectangle (card.translated (0.0f, 4.0f), 8.0f);
+
+    gr.setGradientFill (juce::ColourGradient (colours::panelLight, 0.0f, card.getY(), colours::panel, 0.0f, card.getBottom(), false));
+    gr.fillRoundedRectangle (card, 8.0f);
+
+    // brushed metal hint, like the panel
+    {
+        juce::Graphics::ScopedSaveState state (gr);
+        gr.reduceClipRegion (card.reduced (2.0f).toNearestInt());
+        gr.setColour (juce::Colours::white.withAlpha (0.015f));
+
+        for (auto y = card.getY(); y < card.getBottom(); y += 3.0f)
+            gr.drawHorizontalLine ((int) y, card.getX(), card.getRight());
+    }
+
+    gr.setColour (juce::Colours::black.withAlpha (0.7f));
+    gr.drawRoundedRectangle (card, 8.0f, 1.5f);
+    gr.setColour (juce::Colours::white.withAlpha (0.06f));
+    gr.drawRoundedRectangle (card.reduced (2.0f), 6.5f, 1.0f);
+
+    auto area = card.reduced (26.0f, 18.0f);
+
+    // title with a lit LED
+    auto title = area.removeFromTop (38.0f);
+    const auto led = title.removeFromRight (14.0f).withSizeKeepingCentre (12.0f, 12.0f);
+    gr.setColour (colours::ledOn.withAlpha (0.3f));
+    gr.fillEllipse (led.expanded (3.0f));
+    gr.setGradientFill (juce::ColourGradient (juce::Colour (0xffffb3a6), led.getCentreX() - 2.0f, led.getCentreY() - 2.0f,
+                                              colours::ledOn, led.getCentreX(), led.getBottom(), true));
+    gr.fillEllipse (led);
+    gr.setColour (juce::Colours::black.withAlpha (0.7f));
+    gr.drawEllipse (led, 1.0f);
+
+    gr.setColour (colours::label);
+    gr.setFont (juce::FontOptions (34.0f, juce::Font::bold));
+    gr.drawText ("MB-11", title, juce::Justification::left, false);
+
+    gr.setColour (colours::labelDim);
+    gr.setFont (juce::FontOptions (12.0f));
+    gr.drawText ("ANALOG BASS DRUM", area.removeFromTop (16.0f).translated (2.0f, 0.0f), juce::Justification::left, false);
+
+    area.removeFromTop (10.0f);
+    gr.setColour (colours::red);
+    gr.fillRect (area.removeFromTop (2.0f));
+    area.removeFromTop (12.0f);
+
+    for (const auto& row : rows)
+    {
+        auto line = area.removeFromTop (rowHeight);
+        gr.setColour (colours::labelDim);
+        gr.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        gr.drawText (row.label.toUpperCase(), line.removeFromLeft (96.0f), juce::Justification::left, false);
+        gr.setColour (colours::label);
+        gr.setFont (juce::FontOptions (15.0f));
+        gr.drawText (row.value, line, juce::Justification::left, false);
+    }
+
+    gr.setColour (colours::labelDim);
+    gr.setFont (juce::FontOptions (10.5f));
+    gr.drawText (juce::String::fromUTF8 ("Klick schlie\xc3\x9f" "t"), area.removeFromBottom (14.0f), juce::Justification::right, false);
+}
+
+void InfoPopup::mouseUp (const juce::MouseEvent&)
+{
+    if (onClose != nullptr)
+        onClose();
+}
 }
