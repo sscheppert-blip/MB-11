@@ -245,6 +245,44 @@ static void testInfoPopup()
     check (! popupVisible(), "version popup closes");
 }
 
+static void testFineWheel()
+{
+    auto wheel = [] (juce::Component& c, bool shift, float deltaX, float deltaY)
+    {
+        const auto mods = shift ? juce::ModifierKeys (juce::ModifierKeys::shiftModifier) : juce::ModifierKeys();
+        const juce::MouseEvent event (juce::Desktop::getInstance().getMainMouseSource(), {}, mods, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                      &c, &c, juce::Time::getCurrentTime(), {}, juce::Time::getCurrentTime(), 1, false);
+        juce::MouseWheelDetails details {};
+        details.deltaX = deltaX;
+        details.deltaY = deltaY;
+        c.mouseWheelMove (event, details);
+    };
+
+    mb11::ui::ValuePot pot;
+    float moved = 0.5f;
+    pot.onMove = [&moved] (float p) { moved = p; };
+
+    wheel (pot, false, 0.0f, 0.5f);
+    const auto coarse = moved - 0.5f;
+    pot.setPosition (0.5f);
+    wheel (pot, true, 0.0f, 0.5f);
+    const auto fine = moved - 0.5f;
+    check (fine > 0.0f && std::abs (coarse - 4.0f * fine) < 1.0e-4f, "Shift+wheel moves the pot four times finer");
+
+    mb11::ui::Encoder encoder;
+    int steps = 0;
+    encoder.onTurn = [&steps] (int s) { steps += s; };
+
+    wheel (encoder, false, 0.0f, 1.0f);
+    const auto coarseSteps = steps;
+    steps = 0;
+    wheel (encoder, true, 0.0f, 1.0f);
+    const auto fineSteps = steps;
+    steps = 0;
+    wheel (encoder, true, 1.0f, 0.0f);    // macOS turns Shift+wheel into a horizontal wheel
+    check (coarseSteps == 12 && fineSteps == 4 && steps == 4, "Shift+wheel turns the encoder three times finer");
+}
+
 static void testFrontPanel()
 {
     using Mode = FrontPanelModel::Mode;
@@ -347,6 +385,7 @@ int main (int argc, char** argv)
     testProcessor();
     testFrontPanel();
     testInfoPopup();
+    testFineWheel();
 
     const auto bank = mb11::presets::createFactoryBank();
 

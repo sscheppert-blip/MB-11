@@ -16,6 +16,9 @@ MB-11 ist eine analoge Bassdrum im Stil der Jomox MBase11. Bedient wird sie wie 
 | **LEDs rechts** | Welcher Klangparameter gewählt ist |
 | **LEDs links** | Welcher Master-/2nd-Parameter gewählt ist |
 | **Trig / Xtrig / Midi** | Blinken bei Auslösung bzw. MIDI-Empfang |
+| **MB-11-Logo** | Klick zeigt Version und Build |
+
+**Feinjustage:** **Shift** gedrückt halten beim Ziehen oder Scrollen – der Encoder reagiert dann 3×, das Poti 4× feiner.
 
 Weil man mit der Maus nicht zwei Taster gleichzeitig drücken kann, gilt **Shift-Klick** als „zweiter Taster“:
 

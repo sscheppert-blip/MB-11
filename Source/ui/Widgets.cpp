@@ -8,6 +8,17 @@ namespace
     // e = lower left, f = upper left, g = middle
     enum : uint8_t { a = 1, b = 2, c = 4, d = 8, e = 16, f = 32, g = 64 };
 
+    // Wheel movement; with Shift macOS reports a vertical wheel as horizontal.
+    float wheelDelta (const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
+    {
+        auto delta = wheel.deltaY;
+
+        if (event.mods.isShiftDown() && juce::approximatelyEqual (delta, 0.0f))
+            delta = wheel.deltaX;
+
+        return wheel.isReversed ? -delta : delta;
+    }
+
     void paintKnob (juce::Graphics& gr, juce::Rectangle<float> area, float angle, juce::Colour pointer)
     {
         const auto size = juce::jmin (area.getWidth(), area.getHeight());
@@ -327,9 +338,10 @@ void Encoder::mouseUp (const juce::MouseEvent&)
         onClick();
 }
 
-void Encoder::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheel)
+void Encoder::mouseWheelMove (const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    wheelAccumulator += (wheel.isReversed ? -wheel.deltaY : wheel.deltaY) * 12.0f;
+    // Shift: three times finer, like dragging
+    wheelAccumulator += wheelDelta (event, wheel) * (event.mods.isShiftDown() ? 4.0f : 12.0f);
     const auto steps = (int) wheelAccumulator;
 
     if (steps != 0)
@@ -402,9 +414,10 @@ void ValuePot::mouseDrag (const juce::MouseEvent& event)
     moveTo (dragStartPosition - (float) event.getDistanceFromDragStartY() / range);
 }
 
-void ValuePot::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheel)
+void ValuePot::mouseWheelMove (const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    moveTo (position + (wheel.isReversed ? -wheel.deltaY : wheel.deltaY) * 0.1f);
+    // Shift: four times finer, like dragging
+    moveTo (position + wheelDelta (event, wheel) * (event.mods.isShiftDown() ? 0.025f : 0.1f));
 }
 
 //==============================================================================
