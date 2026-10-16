@@ -1,68 +1,40 @@
 # MB-11
 
-Analog-style bass drum synthesizer modelled on the operating concept of the Jomox MBase11.
+A fat analog-style bass drum as a plugin – from a short, clicky techno kick to a long, booming
+sub tone. You play it like a little hardware box: one display, a few buttons and two value knobs.
 Built with JUCE as AU, VST3, CLAP and Standalone for macOS, Windows and Linux.
 
-- Modelled analog circuit: triangle-core VCO with shaper, harmonics morph, pitch envelope,
-  capacitor envelopes, OTA VCA, coupling capacitors, component tolerances per instance (4× oversampled)
-- Pulse/noise attack section with metallic noise patterns, EQ low-pass
-- Hardware workflow: display, Up/Down, endless encoder, value pot with pickup, master and 2nd function pages
-- 10 user and 100 factory presets, SysEx dump/load, MIDI CC map of the original
-- LFO with 8 waveforms, BPM or host sync, retrigger and one-shot
-- X Trig sidechain input with trigger-to-MIDI (AU, VST3, Standalone)
+- One knob turn from punchy to booming: Tune (the "punch" of the pitch sweep), Pitch, Decay,
+  Harmonics for a harder, timpani-like tone
+- Attack section with click and noise, including metallic noise patterns, plus an EQ to darken it
+- Feels like a real device: every instance has slightly different component tolerances and drifts a
+  little, just like hardware
+- 100 factory sounds and 10 slots for your own, shared by all instances and formats
+- Play it as a bass synth over the keyboard (C1–F3, in semitones)
+- LFO with 8 waveforms, free, synced to your song's tempo or as a one-shot
+- Trigger it from an audio track (X Trig side-chain input, not in the CLAP version)
+- Every sound parameter can be controlled by MIDI CC and automated in your DAW
+- Fine adjustment: hold Shift while dragging or scrolling
 
-**Quick start (German):** [docs/Schnellstart.md](docs/Schnellstart.md)
+**Quick start (German):** [docs/Schnellstart.md](docs/Schnellstart.md) · [PDF](docs/Schnellstart.pdf)
 
-## Downloads
+![MB-11 front panel](docs/images/panel.png)
 
-Released versions are under **Releases** with AU (macOS), VST3 and CLAP packages for macOS,
-Windows and Linux.
+## Download
 
-Builds run only on demand (pushes don't trigger them, to save GitHub Actions minutes). To publish a
-new version, bump `VERSION` in `CMakeLists.txt`, commit and push, then:
+Released versions are under **Releases**: AU (macOS), VST3 and CLAP for macOS, Windows and Linux.
+Unpack the package and copy the plugin into your plugin folder:
 
-- **On a Mac:** `tools/release-mac.sh 0.2.0` builds, tests and validates the macOS plugins locally as
-  universal binaries, creates a draft release with them, then lets GitHub build only Linux and
-  Windows and publish. `--dry-run` stops after packaging.
-- **On a PC:** `gh workflow run build -f version=0.2.0` (or Actions → build → Run workflow) builds
-  all three platforms on GitHub.
+| System  | VST3 | CLAP | AU |
+|---------|------|------|----|
+| macOS   | `~/Library/Audio/Plug-Ins/VST3` | `~/Library/Audio/Plug-Ins/CLAP` | `~/Library/Audio/Plug-Ins/Components` |
+| Windows | `C:\Program Files\Common Files\VST3` | `C:\Program Files\Common Files\CLAP` | – |
+| Linux   | `~/.vst3` | `~/.clap` | – |
 
-Either way the release `v0.2.0` gets AU (macOS), VST3 and CLAP packages.
+Then let your DAW rescan its plugins. A click on the MB-11 logo shows which version you have.
 
-The macOS builds are only ad-hoc signed. Gatekeeper may block them on other Macs until they are
-signed and notarized; locally you can allow them with `xattr -dr com.apple.quarantine <plugin>`.
-
-## Presets
-
-All 110 preset slots are stored in one file shared by every instance and format:
-
-| System  | File |
-|---------|------|
-| macOS   | `~/Library/Application Support/MB-11/PresetBank.xml` |
-| Windows | `%APPDATA%\MB-11\PresetBank.xml` |
-| Linux   | `~/.config/MB-11/PresetBank.xml` |
-
-The file is created on the first *Store*. Delete it to return to the factory presets.
-
-## Building
-
-Requirements: CMake 3.22+, a C++20 compiler (Xcode, Visual Studio 2022, GCC/Clang), Ninja recommended.
-JUCE and clap-juce-extensions are fetched automatically.
-
-```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/MB11Tests_artefacts/Release/MB11Tests
-```
-
-Options:
-
-| Option | Default | |
-|--------|---------|-|
-| `MB11_COPY_PLUGIN` | `ON` | Copy the plugins into the user's plugin folders after building |
-| `MB11_BUILD_TESTS` | `ON` | Build the offline tests |
-
-On Linux install the JUCE dependencies first (see `.github/workflows/build.yml`).
+**macOS:** the plugins are not notarized by Apple yet, so macOS may block them. Unblock them once in
+the Terminal, e.g. `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/MB-11.vst3`.
 
 ## Credits
 
@@ -72,6 +44,7 @@ The code, DSP and documentation were written by AI coding agents – [Claude Cod
 
 ## License
 
-MB-11 uses [JUCE](https://juce.com), which is licensed under AGPLv3 or a commercial JUCE licence.
-"Jomox" and "MBase" are trademarks of their respective owner; MB-11 is an independent project and
-not affiliated with Jomox.
+The license for MB-11 itself is not settled yet. The plugins are built with [JUCE](https://juce.com),
+which has its own license terms.
+
+<sub>Building from source: [docs/Development.md](docs/Development.md)</sub>

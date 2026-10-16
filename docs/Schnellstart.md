@@ -1,6 +1,6 @@
 # MB-11 – Schnellstart
 
-MB-11 ist eine analoge Bassdrum im Stil der Jomox MBase11. Bedient wird sie wie die Hardware: ein Display, ein paar Taster, zwei VALUE-Regler.
+MB-11 ist eine analog klingende Bassdrum. Bedient wird sie wie ein kleines Hardware-Gerät: ein Display, ein paar Taster, zwei VALUE-Regler.
 
 ---
 
@@ -22,7 +22,7 @@ MB-11 ist eine analoge Bassdrum im Stil der Jomox MBase11. Bedient wird sie wie 
 
 Weil man mit der Maus nicht zwei Taster gleichzeitig drücken kann, gilt **Shift-Klick** als „zweiter Taster“:
 
-| Am Gerät | Bei MB-11 | Öffnet |
+| Zwei Taster zugleich | Bei MB-11 | Öffnet |
 |---|---|---|
 | UP + DOWN | **Shift-Klick auf UP oder DOWN** | Master-Ebene |
 | UP + PLAY | **Shift-Klick auf PLAY** | 2nd Function |
@@ -146,7 +146,7 @@ Alle 110 Speicherplätze (`Pr0`–`Pr9`, `r00`–`r99`) stehen in **einer Datei*
 - **Note C1 (36)** löst die Bassdrum aus, im Split Mode `SM2` die Noten C1–F3.
 - Der **MIDI-Kanal** wird in der Master-Ebene eingestellt (Standard: 1).
 - **Program Change** wählt das Preset.
-- Alle Klangparameter sind per **MIDI-CC** steuerbar (wie beim Original) und im DAW automatisierbar:
+- Alle Klangparameter sind per **MIDI-CC** steuerbar und im DAW automatisierbar:
 
 | CC | Parameter | CC | Parameter |
 |---|---|---|---|
