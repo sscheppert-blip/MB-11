@@ -38,9 +38,11 @@ the Terminal, e.g. `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3
 
 ## Credits
 
-Idea, direction and testing: [sscheppert-blip](https://github.com/sscheppert-blip).
-The code, DSP and documentation were written by AI coding agents – [Claude Code](https://claude.com/claude-code)
-(Anthropic) and OpenAI Codex – based on those ideas.
+Idea, direction, ears and the "nah, that sweep is too fast" calls: [sscheppert-blip](https://github.com/sscheppert-blip).
+Every line of code, DSP and documentation was typed by AI: [Claude Code](https://claude.com/claude-code)
+running **Claude Opus 5.5**, with a helping hand from [OpenAI Codex](https://openai.com/codex). So if you
+like it, send a good part of the flowers to the robots – the human only pointed and said "make it go
+boom". 🤖💐
 
 ## License
 
