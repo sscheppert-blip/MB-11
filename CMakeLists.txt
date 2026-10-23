@@ -104,6 +104,12 @@ if(APPLE)
             COMMAND test ! -d "${installed}" || codesign --force --deep --sign - "${installed}"
             VERBATIM)
     endforeach()
+
+    # The linker signs only the Standalone binary, not its resources, so sign the whole app
+    # (ad hoc, free – no Apple developer account involved).
+    add_custom_command(TARGET MB11_Standalone POST_BUILD
+        COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:MB11_Standalone>"
+        VERBATIM)
 endif()
 
 # ---------------------------------------------------------------------------

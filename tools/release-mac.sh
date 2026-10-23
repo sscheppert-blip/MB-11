@@ -39,10 +39,10 @@ dist=$build/dist
 # ── build + test (universal binary) ─────────────────────────────────────────
 echo "▸ building macOS packages for $tag ($sha)"
 cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DMB11_COPY_PLUGIN=OFF >/dev/null
-cmake --build "$build" --target MB11_AU MB11_VST3 MB11_CLAP MB11Tests
+cmake --build "$build" --target MB11_AU MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests
 "$build/MB11Tests_artefacts/Release/MB11Tests"
 
-for bundle in VST3/MB-11.vst3 CLAP/MB-11.clap AU/MB-11.component; do
+for bundle in VST3/MB-11.vst3 CLAP/MB-11.clap AU/MB-11.component Standalone/MB-11.app; do
     codesign -v "$release/$bundle"
     [[ "$(lipo -archs "$release/$bundle/Contents/MacOS/MB-11")" == *arm64* ]] || die "$bundle is not universal"
     [[ "$(lipo -archs "$release/$bundle/Contents/MacOS/MB-11")" == *x86_64* ]] || die "$bundle is not universal"
@@ -71,6 +71,7 @@ rm -rf "$dist" && mkdir -p "$dist"
 ditto -c -k --keepParent "$release/VST3/MB-11.vst3"      "$dist/MB-11-$version-macOS-VST3.zip"
 ditto -c -k --keepParent "$release/CLAP/MB-11.clap"      "$dist/MB-11-$version-macOS-CLAP.zip"
 ditto -c -k --keepParent "$release/AU/MB-11.component"   "$dist/MB-11-$version-macOS-AU.zip"
+ditto -c -k --keepParent "$release/Standalone/MB-11.app" "$dist/MB-11-$version-macOS-Standalone.zip"
 
 if [[ "$dry_run" == true ]]; then
     echo "✓ dry run done – packages in $dist:"

@@ -46,7 +46,7 @@ new version, bump `VERSION` in `CMakeLists.txt`, optionally add release notes as
 - **On a PC:** `gh workflow run build -f version=0.3.0` (or Actions → build → Run workflow) builds
   all three platforms on GitHub.
 
-Either way the release `v0.3.0` gets AU (macOS), VST3 and CLAP packages named
+Either way the release `v0.3.0` gets AU (macOS), VST3, CLAP and Standalone packages named
 `MB-11-<version>-<system>-<format>`. Without a notes file, GitHub generates the notes from the commits.
 
 The macOS builds are only ad-hoc signed. Gatekeeper may block them on other Macs until they are

@@ -9,7 +9,7 @@ name: build
 #   On a PC:   gh workflow run build -f version=0.2.0
 #              (or Actions → build → Run workflow): builds all three platforms here.
 #
-# Each run builds and tests AU (macOS), VST3 and CLAP and publishes release v<version>.
+# Each run builds and tests AU (macOS), VST3, CLAP and the Standalone app and publishes release v<version>.
 on:
   workflow_dispatch:
     inputs:
@@ -62,13 +62,13 @@ jobs:
           entries=$(jq -nc --arg t "$tests" '[
             { name: "macOS",   os: "macos-latest",
               configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release \"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64\"",
-              targets: "MB11_AU MB11_VST3 MB11_CLAP MB11Tests", tests: $t },
+              targets: "MB11_AU MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests", tests: $t },
             { name: "Linux",   os: "ubuntu-24.04",
               configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release",
-              targets: "MB11_VST3 MB11_CLAP MB11Tests", tests: $t },
+              targets: "MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests", tests: $t },
             { name: "Windows", os: "windows-latest",
               configure: "-A x64",
-              targets: "MB11_VST3 MB11_CLAP MB11Tests", tests: ($t + ".exe") }
+              targets: "MB11_VST3 MB11_CLAP MB11_Standalone MB11Tests", tests: ($t + ".exe") }
           ]')
           if [[ "$MACOS" != "true" ]]; then
             entries=$(jq -c 'map(select(.name != "macOS"))' <<< "$entries")
@@ -123,13 +123,16 @@ jobs:
             macOS)
               ditto -c -k --keepParent AU/MB-11.component "$out-macOS-AU.zip"
               ditto -c -k --keepParent VST3/MB-11.vst3 "$out-macOS-VST3.zip"
-              ditto -c -k --keepParent CLAP/MB-11.clap "$out-macOS-CLAP.zip" ;;
+              ditto -c -k --keepParent CLAP/MB-11.clap "$out-macOS-CLAP.zip"
+              ditto -c -k --keepParent Standalone/MB-11.app "$out-macOS-Standalone.zip" ;;
             Linux)
               tar -czf "$out-Linux-VST3.tar.gz" -C VST3 MB-11.vst3
-              tar -czf "$out-Linux-CLAP.tar.gz" -C CLAP MB-11.clap ;;
+              tar -czf "$out-Linux-CLAP.tar.gz" -C CLAP MB-11.clap
+              tar -czf "$out-Linux-Standalone.tar.gz" -C Standalone MB-11 ;;
             Windows)
               7z a "$out-Windows-VST3.zip" ./VST3/MB-11.vst3
-              7z a "$out-Windows-CLAP.zip" ./CLAP/MB-11.clap ;;
+              7z a "$out-Windows-CLAP.zip" ./CLAP/MB-11.clap
+              7z a "$out-Windows-Standalone.zip" ./Standalone/MB-11.exe ;;
           esac
 
       - uses: actions/upload-artifact@v4

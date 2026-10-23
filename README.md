@@ -22,7 +22,8 @@ Built with JUCE as AU, VST3, CLAP and Standalone for macOS, Windows and Linux.
 
 ## Download
 
-Released versions are under **Releases**: AU (macOS), VST3 and CLAP for macOS, Windows and Linux.
+Released versions are under **Releases**: AU (macOS), VST3, CLAP and a Standalone app for macOS,
+Windows and Linux.
 Installation is explained in the manual ([English](docs/Manual.md#1-installation) ·
 [Deutsch](docs/Handbuch.md#1-installation)). A click on the MB-11 logo shows which version you have.
 

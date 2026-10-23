@@ -30,8 +30,8 @@ driftet ein wenig.
 ## 1. Installation
 
 MB-11 gibt es als **AU** (nur macOS), **VST3** und **CLAP** für macOS, Windows und Linux. Fertige
-Pakete liegen bei den [Releases](https://github.com/sscheppert-blip/MB-11/releases). Eine
-Standalone-App, die ohne DAW läuft, entsteht derzeit nur beim Selberbauen.
+Pakete liegen bei den [Releases](https://github.com/sscheppert-blip/MB-11/releases), dazu eine
+**Standalone**-App, die ohne DAW läuft.
 
 | System | Ordner |
 |---|---|
@@ -45,6 +45,10 @@ Standalone-App, die ohne DAW läuft, entsteht derzeit nur beim Selberbauen.
 Danach die DAW nach neuen Plugins suchen lassen. MB-11 erscheint als Instrument des Herstellers
 **sscheppert-blip**. Ein Klick aufs
 MB-11-Logo zeigt, welche Version du hast. Beim Aktualisieren das alte Plugin vorher löschen.
+
+**Standalone-App:** entpacken und von überall starten – auf dem Mac `MB-11.app` (z. B. in die
+Programme), unter Windows `MB-11.exe`, unter Linux das Programm `MB-11`. Audio- und MIDI-Geräte wählst
+du unter **Options → Audio/MIDI Settings**. Sie teilt sich den Preset-Speicher mit den Plugins.
 
 Die CLAP-Version hat keinen X-Trig-Eingang (Auslösen per Audio).
 
@@ -72,7 +76,7 @@ Markierung da ist.
 **Für MB-11 – alle Formate auf einmal:**
 
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/MB-11.component ~/Library/Audio/Plug-Ins/VST3/MB-11.vst3 ~/Library/Audio/Plug-Ins/CLAP/MB-11.clap
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/MB-11.component ~/Library/Audio/Plug-Ins/VST3/MB-11.vst3 ~/Library/Audio/Plug-Ins/CLAP/MB-11.clap /Applications/MB-11.app
 ```
 
 Hast du nur einen Teil der Formate installiert, meldet der Befehl die fehlenden – das ist in Ordnung,
