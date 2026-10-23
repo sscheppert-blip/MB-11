@@ -32,7 +32,7 @@ README image: `docs/images/panel.png` (`--snapshot …`, downscaled to 1400 px).
 
 After editing `docs/Schnellstart.md`, regenerate the PDF with `python3 tools/make_quickstart_pdf.py`
 (needs reportlab and the DejaVu fonts). `tools/check-sensitive-data.sh` (needs ripgrep) scans the
-repository for credentials and local paths; the release workflow runs it too.
+repository for credentials and local paths; the release workflow runs it too. `.githooks/pre-push` runs it before every push once enabled with `git config core.hooksPath .githooks`.
 
 ## Releases
 
