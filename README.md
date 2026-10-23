@@ -16,25 +16,19 @@ Built with JUCE as AU, VST3, CLAP and Standalone for macOS, Windows and Linux.
 - Every sound parameter can be controlled by MIDI CC and automated in your DAW
 - Fine adjustment: hold Shift while dragging or scrolling
 
-**Quick start (German):** [docs/Schnellstart.md](docs/Schnellstart.md) · [PDF](docs/Schnellstart.pdf)
+**Manual:** [English](docs/Manual.md) · [Deutsch](docs/Handbuch.md) · **Schnellstart (German quick start):** [docs/Schnellstart.md](docs/Schnellstart.md) · [PDF](docs/Schnellstart.pdf)
 
 ![MB-11 front panel](docs/images/panel.png)
 
 ## Download
 
 Released versions are under **Releases**: AU (macOS), VST3 and CLAP for macOS, Windows and Linux.
-Unpack the package and copy the plugin into your plugin folder:
+Installation is explained in the manual ([English](docs/Manual.md#1-installation) ·
+[Deutsch](docs/Handbuch.md#1-installation)). A click on the MB-11 logo shows which version you have.
 
-| System  | VST3 | CLAP | AU |
-|---------|------|------|----|
-| macOS   | `~/Library/Audio/Plug-Ins/VST3` | `~/Library/Audio/Plug-Ins/CLAP` | `~/Library/Audio/Plug-Ins/Components` |
-| Windows | `C:\Program Files\Common Files\VST3` | `C:\Program Files\Common Files\CLAP` | – |
-| Linux   | `~/.vst3` | `~/.clap` | – |
-
-Then let your DAW rescan its plugins. A click on the MB-11 logo shows which version you have.
-
-**macOS:** the plugins are not notarized by Apple yet, so macOS may block them. Unblock them once in
-the Terminal, e.g. `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/MB-11.vst3`.
+**macOS:** the plugins are not notarized by Apple yet, so macOS may block them. The manual explains
+how to unblock any downloaded plugin – and MB-11 in one go
+([English](docs/Manual.md#unblocking-plugins-on-macos) · [Deutsch](docs/Handbuch.md#plugins-auf-macos-freigeben)).
 
 ## Credits
 
