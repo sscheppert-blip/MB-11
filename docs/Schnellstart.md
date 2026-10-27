@@ -2,6 +2,10 @@
 
 MB-11 ist eine analog klingende Bassdrum. Bedient wird sie wie ein kleines Hardware-Gerät: ein Display, ein paar Taster, zwei VALUE-Regler.
 
+Ausführlich: [Handbuch](Handbuch.md).
+
+![MB-11](images/panel.png)
+
 ---
 
 ## Die Bedienelemente
