@@ -35,6 +35,7 @@ juce_add_plugin(MB11
     BUNDLE_ID                "io.github.sscheppert-blip.mb11"
     PLUGIN_MANUFACTURER_CODE Sbli
     PLUGIN_CODE              Mb11
+    ICON_BIG                 "${CMAKE_CURRENT_SOURCE_DIR}/design/icon.png"
     FORMATS                  AU VST3 Standalone
     IS_SYNTH                 TRUE
     NEEDS_MIDI_INPUT         TRUE
